@@ -32,6 +32,21 @@ def compare_publish_time(time_str: str) -> bool:
         return False
     else:
         return True
+    
+
+def check_date(date_str: str) -> bool:
+    # if the date is after 2024-11-30, return True
+    # else return False
+    date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    if date > datetime.datetime(2024, 11, 30):
+        return True
+    else:
+        return False
+    
+def extract_date_from_li_item(li_item: BeautifulSoup) -> str:
+    publish_date = li_item.find('span', class_='news-time').text.strip()
+    return publish_date
+
 
 async def extract_info_from_li_item(li_item: BeautifulSoup):
     try:
@@ -51,34 +66,42 @@ async def extract_info_from_li_item(li_item: BeautifulSoup):
     bidding_info = BiddingInfo(title=title, url=href, publish_date=publish_date)
 
     db = await get_database()
-    # I want to check if the table exists, if not, create it
-    collections = await db.list_collection_names()
-    print(collections)
-
-    if "info" not in collections:
-        await db.create_collection("info")
-        print("Collection created")
     
     await db.bidding_info.insert_one(bidding_info.model_dump())
     print("Info stored")
 
 
+
+# need to scrape all the info after the 2024-11-30
+
 async def get_shenzhen_bidding_info():
 
-    response = requests.get(first_page_url)
-    soup = BeautifulSoup(response.text, "html.parser")
+    count = 1
 
-    # 获取当前页面的招标信息
-    # bid_info_divs = soup.find_all('div', class_='bid-info')
-    # for bid_info_div in bid_info_divs:
+    while True:
+        if count == 1:
+            url = first_page_url
+        else:
+            url = next_page_url.format(count)
 
-    news_items = soup.find('ul', {'class': 'news-items', 'id': 'infoContent'})
-    if news_items:
-        li_items = news_items.find_all('li')
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        for li_item in li_items:
-            await extract_info_from_li_item(li_item)
-            print("--------------------------------")
+        news_items = soup.find('ul', {'class': 'news-items', 'id': 'infoContent'})
+        if news_items:
+            li_items = news_items.find_all('li')
+
+            for li_item in li_items:
+                publish_date = extract_date_from_li_item(li_item)
+                if check_date(publish_date):
+                    await extract_info_from_li_item(li_item)
+                    print("--------------------------------")
+                else:
+                    # if the date is not after 2024-11-30, end the loop and return
+                    return
+
+        count += 1
+        await asyncio.sleep(2)
     
 
     # print(bid_info_divs)
