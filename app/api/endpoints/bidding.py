@@ -13,6 +13,10 @@ async def get_bidding_info(
     limit: int = Query(default=10, le=100),
     date: Optional[str] = None
 ):
+    print("skip: ", skip)
+    print("limit: ", limit)
+    # print("date: ", date)
+    
     db = await get_database()
     query = {}
     
@@ -20,7 +24,21 @@ async def get_bidding_info(
     if date:
         query["publish_date"] = date
     
-    cursor = db.bidding_info.find(query).skip(skip).limit(limit)
+    cursor = db.bidding_infomation.find(query).sort("publish_date", -1).skip(skip).limit(limit)
     results = await cursor.to_list(length=limit)
     
     return results
+
+
+@router.get("/bidding/count")
+async def get_bidding_info_count(
+    date: Optional[str] = None
+):
+    db = await get_database()
+    query = {}
+    if date:
+        query = {"publish_date": date}
+    
+    count = await db.bidding_info.count_documents(query)
+    return {"total": count}
+
