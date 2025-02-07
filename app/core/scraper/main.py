@@ -10,7 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.db.models.info import BiddingInfo
 from app.db.mongodb import get_database
-from app.core.scraper.classify import classify_info
+# from app.core.scraper.classify_univerities import classify_info
 
 
 # 从深圳政府采购网获取招标信息
@@ -73,10 +73,22 @@ def extract_info_from_li_item(li_item: BeautifulSoup) -> BiddingInfo:
 
     return bidding_info
 
+# 分类信息: 如果信息中包含南方科技大学、深圳大学、深圳技术大学、深圳国际量子研究院、深圳综合粒子设施研究院，则将信息分类到相应的大学
+async def classify_info(info: BiddingInfo):
+
+    db = await get_database()
+    
+    info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    
+
 
 # 获取最新的招标信息
 # 直到获取到与数据库中最新招标信息相同的信息为止
 async def get_shenzhen_bidding_info():
+
+    db = await get_database()
+
     print("Getting the latest bidding info at {}...".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     count = 1
     
@@ -99,11 +111,32 @@ async def get_shenzhen_bidding_info():
                     return
                 else:
                     await insert_info_to_db(info)
-                    await classify_info(info)
+                    for keyword in [
+                        "南方科技大学",
+                        "深圳大学",
+                        "深圳技术大学",
+                        "深圳国际量子研究院",
+                        "深圳综合粒子设施研究院",
+                    ]:
+                        if keyword in info.title:
+                            match keyword:
+                                case "南方科技大学":
+                                    # info.university = "南方科技大学"
+                                    db.nkd.insert_one(info.model_dump())
+                                case "深圳大学":
+                                    # info.university = "深圳大学"
+                                    db.szu.insert_one(info.model_dump())
+                                case "深圳技术大学":
+                                    # info.university = "深圳技术大学"
+                                    db.sztu.insert_one(info.model_dump())
+                                case "深圳国际量子研究院":
+                                    # info.university = "深圳国际量子研究院"
+                                    db.siqse.insert_one(info.model_dump())
+                                case "深圳综合粒子设施研究院":
+                                    # info.university = "深圳综合粒子设施研究院"
+                                    db.iasf.insert_one(info.model_dump())
 
                 # print("--------------------------------")
-
-
         count += 1
         await asyncio.sleep(2)
 

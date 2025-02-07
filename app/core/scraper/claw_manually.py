@@ -14,8 +14,8 @@ def classify_exist_info():
 
 
 async def main():
-    # await get_shenzhen_bidding_info()
-    pass
+    await get_shenzhen_bidding_info()
+    
 
 if __name__ == "__main__":
     asyncio.run(main())
