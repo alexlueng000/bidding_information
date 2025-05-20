@@ -1,5 +1,7 @@
 import datetime
 import asyncio
+import json
+import random
 
 import requests
 from bs4 import BeautifulSoup
@@ -10,14 +12,34 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.db.models.info import BiddingInfo
 from app.db.mongodb import get_database
+from app.core.scraper.scrape_full_info import scrape_full_infomation
 # from app.core.scraper.classify_univerities import classify_info
 
+from openai import OpenAI
+
+# prefix = 'http://zfcg.szggzy.com:8081/'
+
+api_key = 'sk-vUyp1vFsIO0OxaIi0c8573Ed7e5e4e18A58618378eE9D106'
+openai_url = 'https://openkey.cloud/v1'
+
+
+client = OpenAI(api_key=api_key, base_url="https://openkey.cloud/v1")
 
 # 从深圳政府采购网获取招标信息
 base_url = "http://zfcg.szggzy.com:8081"
 first_page_url = "http://zfcg.szggzy.com:8081/gsgg/002001/002001001/list.html"
 next_page_url = "http://zfcg.szggzy.com:8081/gsgg/002001/002001001/{}.html"
 
+
+proxy_pool = [
+    "http://118.178.197.213:3128",
+    "http://39.101.161.223:8090",
+    "http://118.25.110.238:443",
+]
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+}
 ## steps
 ## 1. 获取页面内容
 ## 2. 解析页面内容
@@ -38,12 +60,12 @@ def compare_publish_time(time_str: str) -> bool:
         return True
     
 
-# 检查日期是否在2024-11-30之后
+# 检查日期是否在2024-10-31之后
 def check_date(date_str: str) -> bool:
-    # if the date is after 2024-11-30, return True
+    # if the date is after 2024-10-31, return True
     # else return False
     date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-    if date > datetime.datetime(2024, 11, 30):
+    if date > datetime.datetime(2024, 10, 31):
         return True
     else:
         return False
@@ -63,10 +85,6 @@ def extract_info_from_li_item(li_item: BeautifulSoup) -> BiddingInfo:
     except Exception as e:
         print(f"Error extracting info from li item: {e}")
         return None
-    
-    # print(f"Title: {title}")
-    # print(f"URL: {href}")
-    # print(f"Date: {publish_date}")
 
     # store the info to the database
     bidding_info = BiddingInfo(title=title, url=href, publish_date=publish_date)
@@ -80,7 +98,6 @@ async def classify_info(info: BiddingInfo):
     
     info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    
 
 
 # 获取最新的招标信息
@@ -98,47 +115,34 @@ async def get_shenzhen_bidding_info():
         else:
             url = next_page_url.format(count)
 
-        response = requests.get(url)
+        proxy = random.choice(proxy_pool)
+        print("Using proxy: {}".format(proxy))
+
+        try: 
+            response = requests.get(url, headers=headers, proxies={"http": proxy, "https": proxy}, timeout=10)
+            if response.status_code == 200:
+                print(f"使用代理 {proxy} 成功")
+                return response.text
+            else:
+                print(f"代理 {proxy} 被拒绝，状态码 {response.status_code}")
+        except Exception as e:
+            print(f"代理 {proxy} 连接失败：{e}")
+            continue
+        
         soup = BeautifulSoup(response.text, "html.parser")
 
         news_items = soup.find('ul', {'class': 'news-items', 'id': 'infoContent'})
+
         if news_items:
             li_items = news_items.find_all('li')
 
             for li_item in li_items:
                 info = extract_info_from_li_item(li_item)
-                if await exist_info(info.publish_date, info.title, info.url):
+                if not await insert_info_to_db(info):
                     return
-                else:
-                    await insert_info_to_db(info)
-                    for keyword in [
-                        "南方科技大学",
-                        "深圳大学",
-                        "深圳技术大学",
-                        "深圳国际量子研究院",
-                        "深圳综合粒子设施研究院",
-                    ]:
-                        if keyword in info.title:
-                            match keyword:
-                                case "南方科技大学":
-                                    # info.university = "南方科技大学"
-                                    db.nkd.insert_one(info.model_dump())
-                                case "深圳大学":
-                                    # info.university = "深圳大学"
-                                    db.szu.insert_one(info.model_dump())
-                                case "深圳技术大学":
-                                    # info.university = "深圳技术大学"
-                                    db.sztu.insert_one(info.model_dump())
-                                case "深圳国际量子研究院":
-                                    # info.university = "深圳国际量子研究院"
-                                    db.siqse.insert_one(info.model_dump())
-                                case "深圳综合粒子设施研究院":
-                                    # info.university = "深圳综合粒子设施研究院"
-                                    db.iasf.insert_one(info.model_dump())
-
                 # print("--------------------------------")
         count += 1
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)  
 
 
 # 数据库中最新的招标信息
@@ -168,12 +172,6 @@ async def exist_info(publish_date: str, title: str, url: str) -> bool:
     return result is not None
 
 
-# 插入新的招标信息到数据库
-async def insert_info_to_db(info: BiddingInfo):
-    info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    db = await get_database()
-    await db.bidding_infomation.insert_one(info.model_dump())
-
 # 获取数据库中所有的招标信息
 async def get_all_info_from_db():
     db = await get_database()
@@ -182,51 +180,123 @@ async def get_all_info_from_db():
     return [BiddingInfo(**result) for result in results]
 
 
-# don't use this function anymore
-async def reorgaize_the_info_from_db():
-    history_info = await get_all_info_from_db()
-    history_info = list(reversed(history_info))
+
+# 插入新的招标信息到数据库
+async def insert_info_to_db(info: BiddingInfo) -> bool:
+
+    # 在插入之前，先判断数据库中是否已经存在了该项目信息
+    db = await get_database()
+
+    query = {
+        "publish_date": info.publish_date,
+        "title": info.title,
+        "url": info.url
+    }
+
+    exist_info = await db.bidding_infomation.find_one(query)
+
+    # 如果已经存在了，就不插入数据库了
+    if exist_info:
+        return False
+
+    info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    count = 1
-    latest_info_count = 0
-    latest_info = await get_the_latest_bidding_info()
+    # 插入主表
+    await db.bidding_infomation.insert_one(info.model_dump())
 
-    while True:
-        if count == 1:
-            url = first_page_url
-        else:
-            url = next_page_url.format(count)
-
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        news_items = soup.find('ul', {'class': 'news-items', 'id': 'infoContent'})
-        if news_items:
-            li_items = news_items.find_all('li')
-
-            for li_item in li_items:
-                info = extract_info_from_li_item(li_item)
-                if exist_info(latest_info, info.publish_date, info.title, info.url):
-                    break  # 跳出 for 循环
-                else:
-                    history_info.append(info)
-                    latest_info_count += 1
-                    print(f"The latest info count is: {latest_info_count}")
-            else:
-                # 如果 for 循环没有 break，继续爬取下一页
-                count += 1
-                await asyncio.sleep(2)
-                continue  # 继续 while 循环
-            
-            # 如果 for 循环中 break 了，跳出 while 循环
-            break
+    # 获取完整的招标信息
+    full_url = base_url + info.url
+    data = scrape_full_infomation(full_url)
     
-    for info in history_info:
-        info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await insert_info_to_db(info)
-    
+    # 如果是重点高校，则插入对应的表
+    for keyword in [
+        "南方科技大学",
+        "深圳大学",
+        "深圳技术大学",
+        "深圳国际量子研究院",
+        "深圳综合粒子设施研究院",
+        "北京大学深圳研究生院",
+        "清华大学深圳国际研究生院",
+        "深圳信息职业技术学院",
+        "深圳湾实验室",
+        "深圳北理莫斯科大学",
+        "北京理工大学深圳汽车研究院",
+        "深圳医学科学院",
+        "哈尔滨工业大学（深圳）",
+        "香港中文大学（深圳）",
+        "深圳理工大学",
+        "深圳职业技术大学",
+        "鹏城实验室",
+        "中山大学深圳校区"
+    ]:
+        if keyword in info.title or keyword in data['采购单位']:
+            # 判断该项目是否属于货物类项目
+            completion = client.chat.completions.create(
+                model="gpt-4o-2024-08-06",
+                stream=False,
+                messages=[
+                    {"role": "system", "content": "你是一位招标采购专家，请根据我提供的招标项目描述信息，判断这个项目是否属于货物类项目。"},
+                    {"role": "user", "content": f"以下是项目描述：\n"
+                                    f"项目名称：{data['项目名称']}\n"
+                                    f"采购品目：{data['采购品目']}\n"
+                                    f"采购需求概况：{data['采购需求概况']}\n"
+                                    "请用JSON格式回复'true'或者'false':{is_good: ...}"}
+                ],
+                response_format={"type": "json_object"}
+            )
+        
+            try:
+                response_data = json.loads(completion.choices[0].message.content)
+                is_good = response_data.get("is_good", False)
+            except json.JSONDecodeError:
+                print(f"无法解析返回内容: {completion.choices[0].message.content}")
+                is_good = False
+
+            info.is_good = is_good
+
+            match keyword:
+                case "南方科技大学":
+                    if '南方科技大学医院' != data['采购单位']:
+                        db.nkd.insert_one(info.model_dump())
+                case "深圳大学":
+                    if '总医院' not in info.title and '附属中学' not in info.title and '附属华南医院' not in info.title:
+                        db.szu.insert_one(info.model_dump())
+                case "深圳技术大学":
+                    db.sztu.insert_one(info.model_dump())
+                case "深圳国际量子研究院":
+                    db.siqse.insert_one(info.model_dump())
+                case "深圳综合粒子设施研究院":
+                    db.iasf.insert_one(info.model_dump())
+                case "北京大学深圳研究生院":
+                    db.pkusz.insert_one(info.model_dump())
+                case "清华大学深圳国际研究生院":
+                    db.tsinghua.insert_one(info.model_dump())
+                case "深圳信息职业技术学院":
+                    db.sziit.insert_one(info.model_dump())
+                case "深圳湾实验室":
+                    db.szbl.insert_one(info.model_dump())
+                case "深圳北理莫斯科大学":
+                    db.smbu.insert_one(info.model_dump())
+                case "北京理工大学深圳汽车研究院":
+                    db.szari.insert_one(info.model_dump())
+                case "深圳医学科学院":
+                    db.szyxkxy.insert_one(info.model_dump())
+                case "哈尔滨工业大学（深圳）":
+                    db.hgd.insert_one(info.model_dump())
+                case "香港中文大学（深圳）":
+                    db.hkc.insert_one(info.model_dump())
+                case "深圳理工大学":
+                    db.szlg.insert_one(info.model_dump())
+                case "深圳职业技术大学":
+                    db.szzyjs.insert_one(info.model_dump())
+                case "鹏城实验室":
+                    db.pcsys.insert_one(info.model_dump())
+                case "中山大学深圳校区":
+                    db.szust.insert_one(info.model_dump())
+    return True
 
 async def main():
+    # await get_shenzhen_bidding_info()
     scheduler = AsyncIOScheduler()
 
     # 使用 CronTrigger 添加定时任务
@@ -254,6 +324,6 @@ async def main():
     except (KeyboardInterrupt, SystemExit):
         print("Stopping the scheduler...")
 
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())
+    asyncio.run(get_shenzhen_bidding_info())

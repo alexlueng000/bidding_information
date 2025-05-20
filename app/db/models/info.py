@@ -7,4 +7,5 @@ class BiddingInfo(BaseModel):
     url: str
     publish_date: str
     created_at: Optional[str] = None
+    is_good: Optional[bool] = None
 

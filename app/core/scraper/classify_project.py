@@ -1,6 +1,8 @@
 # 招标项目分类 
 
 import asyncio
+import json
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -28,6 +30,7 @@ async def get_all_szu_project():
         full_url = prefix + result['url']
         # print(result['title'] + ": " + full_url)
         data = scrape_full_infomation(full_url)
+        print("数据库唯一ID：", result['_id'])
         print(data['项目名称'])
         print(data['采购品目'])
         print(data['采购需求概况'])
@@ -35,16 +38,31 @@ async def get_all_szu_project():
         completion = client.chat.completions.create(
             model="gpt-4o-2024-08-06",
             stream=False,
-             messages=[
-        {"role": "system", "content": "你是一位招标采购专家，请根据我提供的招标项目描述信息，判断这个项目是否属于货物类项目。"},
-        {"role": "user", "content": f"以下是项目描述：\n"
+            messages=[
+                {"role": "system", "content": "你是一位招标采购专家，请根据我提供的招标项目描述信息，判断这个项目是否属于货物类项目。"},
+                {"role": "user", "content": f"以下是项目描述：\n"
                                    f"项目名称：{data['项目名称']}\n"
                                    f"采购品目：{data['采购品目']}\n"
                                    f"采购需求概况：{data['采购需求概况']}\n"
-                                   f"你只需要回复'是'或者'否'"}
-    ]
+                                   "请用JSON格式回复'true'或者'false':{is_good: ...}"}
+            ],
+            response_format={"type": "json_object"}
+
         )
-        print("是否属于服务类项目：",completion.choices[0].message.content)
+        
+        try:
+            response_data = json.loads(completion.choices[0].message.content)
+            is_good = response_data.get("is_good", False)
+        except json.JSONDecodeError:
+            print(f"无法解析返回内容: {completion.choices[0].message.content}")
+            is_good = False
+
+        # 更新数据库中的 is_good 字段
+        await db.szu.update_one(
+            {"_id": result["_id"]},  # 根据 _id 唯一标识更新文档
+            {"$set": {"is_good": is_good}}  # 更新 is_good 字段
+        )
+        print("是否属于货物类项目：", is_good)
         print("-----------------------------------------------")
 
 
