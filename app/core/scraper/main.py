@@ -104,7 +104,7 @@ async def classify_info(info: BiddingInfo):
 # 直到获取到与数据库中最新招标信息相同的信息为止
 async def get_shenzhen_bidding_info():
 
-    db = await get_database()
+    # db = await get_database()
 
     print("Getting the latest bidding info at {}...".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     count = 1
@@ -115,19 +115,10 @@ async def get_shenzhen_bidding_info():
         else:
             url = next_page_url.format(count)
 
-        proxy = random.choice(proxy_pool)
-        print("Using proxy: {}".format(proxy))
+        # proxy = random.choice(proxy_pool)
+        # print("Using proxy: {}".format(proxy))
 
-        try: 
-            response = requests.get(url, headers=headers, proxies={"http": proxy, "https": proxy}, timeout=10)
-            if response.status_code == 200:
-                print(f"使用代理 {proxy} 成功")
-                return response.text
-            else:
-                print(f"代理 {proxy} 被拒绝，状态码 {response.status_code}")
-        except Exception as e:
-            print(f"代理 {proxy} 连接失败：{e}")
-            continue
+        response = requests.get(url)
         
         soup = BeautifulSoup(response.text, "html.parser")
 
