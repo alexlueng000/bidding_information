@@ -20,7 +20,7 @@ from openai import OpenAI
 
 # prefix = 'http://zfcg.szggzy.com:8081/'
 
-api_key = 'sk-vUyp1vFsIO0OxaIi0c8573Ed7e5e4e18A58618378eE9D106'
+api_key = 'sk-fnxDkOHGNONp98mllnyc2us4uSt5ziWycCKSOhuguGLaFTjV'
 openai_url = 'https://openkey.cloud/v1'
 
 
@@ -113,9 +113,10 @@ async def get_shenzhen_bidding_info():
     # db = await get_database()
 
     print("Getting the latest bidding info at {}...".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    count = 2
+    count = 5
     
     while True:
+        
         print("现在爬取第{count}页", count)
         if count == 1:
             url = first_page_url
@@ -135,6 +136,7 @@ async def get_shenzhen_bidding_info():
             li_items = news_items.find_all('li')
 
             for li_item in li_items:
+                print(f"标题：{li_item.text}")
                 info = extract_info_from_li_item(li_item)
                 if info:
                     await insert_info_to_db(info)
