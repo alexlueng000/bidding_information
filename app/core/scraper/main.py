@@ -110,6 +110,7 @@ async def get_shenzhen_bidding_info():
     count = 1
     
     while True:
+        print("现在爬取第{count}页", count)
         if count == 1:
             url = first_page_url
         else:
@@ -133,7 +134,7 @@ async def get_shenzhen_bidding_info():
                     return
                 # print("--------------------------------")
         count += 1
-        await asyncio.sleep(5)  
+        await asyncio.sleep(60)  
 
 
 # 数据库中最新的招标信息
@@ -187,8 +188,8 @@ async def insert_info_to_db(info: BiddingInfo) -> bool:
     exist_info = await db.bidding_infomation.find_one(query)
 
     # 如果已经存在了，就不插入数据库了
-    if exist_info:
-        return False
+    # if exist_info:
+    #     return False
 
     info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
