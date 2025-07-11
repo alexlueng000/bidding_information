@@ -113,7 +113,7 @@ async def get_shenzhen_bidding_info():
     # db = await get_database()
 
     print("Getting the latest bidding info at {}...".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    count = 1
+    count = 2
     
     while True:
         print("现在爬取第{count}页", count)
@@ -206,7 +206,14 @@ async def insert_info_to_db(info: BiddingInfo) -> bool:
 
     # 获取完整的招标信息
     full_url = base_url + info.url
+
+    # 获取详情页数据
     data = scrape_full_infomation(full_url)
+
+    # 判断是否成功获取数据
+    if not data:
+        print(f"[insert_info_to_db] ⚠️ 未获取到详情页数据，跳过该记录: {full_url}")
+        return False
     
     # 如果是重点高校，则插入对应的表
     for keyword in [
