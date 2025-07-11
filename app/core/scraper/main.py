@@ -2,6 +2,7 @@ import datetime
 import asyncio
 import json
 import random
+from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -76,20 +77,25 @@ def extract_date_from_li_item(li_item: BeautifulSoup) -> str:
     return publish_date
 
 
-def extract_info_from_li_item(li_item: BeautifulSoup) -> BiddingInfo:
+
+def extract_info_from_li_item(li_item: BeautifulSoup) -> Optional[BiddingInfo]:
     try:
         link = li_item.find('a', class_='text-overflow')
-        href = link.get('href', '') if link else ''
-        title = link.text.strip() if link else ''
-        publish_date = li_item.find('span', class_='news-time').text.strip()
+        if not link:
+            raise ValueError("未找到链接节点 <a class='text-overflow'>")
+
+        href = link.get('href', '').strip()
+        title = link.get_text(strip=True)
+
+        span = li_item.find('span', class_='news-time')
+        publish_date = span.get_text(strip=True) if span else ''
+
+        return BiddingInfo(title=title, url=href, publish_date=publish_date)
+
     except Exception as e:
-        print(f"Error extracting info from li item: {e}")
+        preview = li_item.text.strip().replace("\n", "")[:50]
+        print(f"[extract_info] ❌ 解析失败: {e} | 内容预览: {preview}")
         return None
-
-    # store the info to the database
-    bidding_info = BiddingInfo(title=title, url=href, publish_date=publish_date)
-
-    return bidding_info
 
 # 分类信息: 如果信息中包含南方科技大学、深圳大学、深圳技术大学、深圳国际量子研究院、深圳综合粒子设施研究院，则将信息分类到相应的大学
 async def classify_info(info: BiddingInfo):
@@ -130,8 +136,10 @@ async def get_shenzhen_bidding_info():
 
             for li_item in li_items:
                 info = extract_info_from_li_item(li_item)
-                if not await insert_info_to_db(info):
-                    return
+                if info:
+                    await insert_info_to_db(info)
+                else:
+                    continue
                 # print("--------------------------------")
         count += 1
         await asyncio.sleep(60)  
