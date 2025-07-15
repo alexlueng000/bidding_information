@@ -198,8 +198,8 @@ async def insert_info_to_db(info: BiddingInfo) -> bool:
     exist_info = await db.bidding_infomation.find_one(query)
 
     # 如果已经存在了，就不插入数据库了
-    # if exist_info:
-    #     return False
+    if exist_info:
+        return False
 
     info.created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
