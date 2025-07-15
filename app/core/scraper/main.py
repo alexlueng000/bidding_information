@@ -113,7 +113,7 @@ async def get_shenzhen_bidding_info():
     # db = await get_database()
 
     print("Getting the latest bidding info at {}...".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    count = 14
+    count = 1
     
     while True:
 
