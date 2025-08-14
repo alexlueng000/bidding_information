@@ -19,7 +19,7 @@ from app.core.scraper.scrape_full_info import scrape_full_infomation
 from openai import OpenAI
 
 # prefix = 'http://zfcg.szggzy.com:8081/'
-
+# sk-56oeiCxzcvHdXJHV2e09C528D19743C3A56b8c90616e11E1
 api_key = 'sk-56oeiCxzcvHdXJHV2e09C528D19743C3A56b8c90616e11E1'
 openai_url = 'https://openkey.cloud/v1'
 
@@ -241,7 +241,7 @@ async def insert_info_to_db(info: BiddingInfo) -> bool:
         if keyword in info.title or keyword in data['采购单位']:
             # 判断该项目是否属于货物类项目
             completion = client.chat.completions.create(
-                model="gpt-4o-2024-08-06",
+                model="gpt-5-2025-08-07",
                 stream=False,
                 messages=[
                     {"role": "system", "content": "你是一位招标采购专家，请根据我提供的招标项目描述信息，判断这个项目是否属于货物类项目。"},
