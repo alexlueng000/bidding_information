@@ -1,26 +1,24 @@
+import os
 import datetime
 import asyncio
 import json
-import random
 from typing import Optional
 
 import requests
+from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-# from pydantic import BaseModel
 
 from app.db.models.info import BiddingInfo
 from app.db.mongodb import get_database
 from app.core.scraper.scrape_full_info import scrape_full_infomation
-# from app.core.scraper.classify_univerities import classify_info
 
 from openai import OpenAI
 
-# prefix = 'http://zfcg.szggzy.com:8081/'
-# sk-56oeiCxzcvHdXJHV2e09C528D19743C3A56b8c90616e11E1
-api_key = 'sk-56oeiCxzcvHdXJHV2e09C528D19743C3A56b8c90616e11E1'
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
 openai_url = 'https://openkey.cloud/v1'
 
 
@@ -41,6 +39,7 @@ proxy_pool = [
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
 }
+
 ## steps
 ## 1. 获取页面内容
 ## 2. 解析页面内容
