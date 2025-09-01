@@ -273,7 +273,7 @@ async def insert_info_to_db(info: BiddingInfo) -> bool:
                     db.sztu.insert_one(info.model_dump())
                 case "深圳国际量子研究院":
                     db.siqse.insert_one(info.model_dump())
-                case "深圳综合粒子设施研究院":
+                case "深圳先进光源研究院":
                     db.iasf.insert_one(info.model_dump())
                 case "北京大学深圳研究生院":
                     db.pkusz.insert_one(info.model_dump())
