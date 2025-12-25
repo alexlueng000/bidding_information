@@ -37,7 +37,13 @@ proxy_pool = [
 ]
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Referer": "http://zfcg.szggzy.com:8081/gsgg/002001/002001001/list.html",
 }
 
 ## steps
@@ -122,10 +128,11 @@ async def get_shenzhen_bidding_info():
         else:
             url = next_page_url.format(count)
 
-        # proxy = random.choice(proxy_pool)
-        # print("Using proxy: {}".format(proxy))
+        session = requests.Session()
+        session.headers.update(headers)
+        session.get(first_page_url, timeout=20)
 
-        response = requests.get(url)
+        response = session.get(url)
         
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -138,7 +145,7 @@ async def get_shenzhen_bidding_info():
                 print(f"标题：{li_item.text}")
                 info = extract_info_from_li_item(li_item)
                 if info:
-                    await insert_info_to_db(info)
+                    await insert_info_to_db(info, session)
                 else:
                     continue
                 # print("--------------------------------")
@@ -183,7 +190,7 @@ async def get_all_info_from_db():
 
 
 # 插入新的招标信息到数据库
-async def insert_info_to_db(info: BiddingInfo) -> bool:
+async def insert_info_to_db(info: BiddingInfo, session: requests.Session) -> bool:
 
     # 在插入之前，先判断数据库中是否已经存在了该项目信息
     db = await get_database()
@@ -209,7 +216,7 @@ async def insert_info_to_db(info: BiddingInfo) -> bool:
     full_url = base_url + info.url
 
     # 获取详情页数据
-    data = scrape_full_infomation(full_url)
+    data = scrape_full_infomation(full_url, session=session, referer=first_page_url)
 
     # 判断是否成功获取数据
     if not data:
