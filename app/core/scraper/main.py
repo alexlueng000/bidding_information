@@ -3,6 +3,8 @@ import datetime
 import asyncio
 import json
 from typing import Optional
+from urllib.parse import urlencode
+
 
 import requests
 from dotenv import load_dotenv
@@ -26,8 +28,10 @@ client = OpenAI(api_key=api_key, base_url="https://openkey.cloud/v1")
 
 # 从深圳政府采购网获取招标信息
 base_url = "http://zfcg.szggzy.com:8081"
-first_page_url = "http://zfcg.szggzy.com:8081/gsgg/002001/002001001/list.html"
-next_page_url = "http://zfcg.szggzy.com:8081/gsgg/002001/002001001/{}.html"
+CATEGORY_NUM = "002001001"
+FIRST_PAGE_URL = f"{base_url}/gsgg/002001/002001001/list.html"
+STATIC_PAGE_URL = f"{base_url}/gsgg/002001/002001001/{{}}.html"  # 2..10
+QUERY_LIST_URL = f"{base_url}/gsgg/002001/002001001/list.html"    # 11+
 
 
 proxy_pool = [
@@ -52,6 +56,16 @@ headers = {
 ## 3. 提取当天的招标信息
 ## 4. 如果有第2页，则获取第2页的页面内容，直到没有当天的信息为止
 ## 5. 存储到数据库
+
+
+def build_list_url(page_index: int) -> str:
+    if page_index <= 1:
+        return FIRST_PAGE_URL
+    if 2 <= page_index <= 10:
+        return STATIC_PAGE_URL.format(page_index)
+    # 11+
+    qs = urlencode({"categoryNum": CATEGORY_NUM, "pageIndex": page_index})
+    return f"{QUERY_LIST_URL}?{qs}"
 
 def compare_publish_time(time_str: str) -> bool:
     # 2025-01-12 
@@ -122,15 +136,11 @@ async def get_shenzhen_bidding_info():
     
     while True:
 
-        print("现在爬取第{count}页", count)
-        if count == 1:
-            url = first_page_url
-        else:
-            url = next_page_url.format(count)
+        url = build_list_url(count)
 
         session = requests.Session()
         session.headers.update(headers)
-        session.get(first_page_url, timeout=20)
+        session.get(url, timeout=20)
 
         response = session.get(url)
         
@@ -342,3 +352,11 @@ async def main():
 if __name__ == "__main__":
     # asyncio.run(main())
     asyncio.run(get_shenzhen_bidding_info())
+
+    # session = requests.Session()
+    # session.headers.update(headers)
+
+    # for p in [1, 10, 11, 12]:
+    #     u = build_list_url(p)
+    #     r = session.get(u, timeout=20)
+    #     print(p, u, r.status_code, len(r.text))
