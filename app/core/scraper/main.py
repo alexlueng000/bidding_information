@@ -155,7 +155,7 @@ async def get_shenzhen_bidding_info():
                 print(f"标题：{li_item.text}")
                 info = extract_info_from_li_item(li_item)
                 if info:
-                    await insert_info_to_db(info, session)
+                    await insert_info_to_db(info, session, url)
                 else:
                     continue
                 # print("--------------------------------")
@@ -200,7 +200,7 @@ async def get_all_info_from_db():
 
 
 # 插入新的招标信息到数据库
-async def insert_info_to_db(info: BiddingInfo, session: requests.Session) -> bool:
+async def insert_info_to_db(info: BiddingInfo, session: requests.Session, list_page_url: str) -> bool:
 
     # 在插入之前，先判断数据库中是否已经存在了该项目信息
     db = await get_database()
@@ -226,7 +226,7 @@ async def insert_info_to_db(info: BiddingInfo, session: requests.Session) -> boo
     full_url = base_url + info.url
 
     # 获取详情页数据
-    data = scrape_full_infomation(full_url, session=session, referer=first_page_url)
+    data = scrape_full_infomation(full_url, session=session, referer=list_page_url)
 
     # 判断是否成功获取数据
     if not data:
