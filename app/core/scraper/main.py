@@ -135,7 +135,7 @@ async def get_shenzhen_bidding_info():
     count = 1
     
     while True:
-
+        print("现在爬取第{}页\n".format(count))
         url = build_list_url(count)
 
         session = requests.Session()
