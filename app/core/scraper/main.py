@@ -129,12 +129,16 @@ async def classify_info(info: BiddingInfo):
 # 直到获取到与数据库中最新招标信息相同的信息为止
 async def get_shenzhen_bidding_info():
 
-    # db = await get_database()
+    db = await get_database()
 
     print("Getting the latest bidding info at {}...".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     count = 1
-    
-    while True:
+    max_pages = 50  # Safety limit: stop after 50 pages
+    consecutive_duplicates = 0  # Stop if we find 5 duplicates in a row
+    max_consecutive_duplicates = 5
+    stop_date = datetime.datetime(2024, 10, 31)  # Don't scrape records older than this
+
+    while count <= max_pages:
         print("现在爬取第{}页\n".format(count))
         url = build_list_url(count)
 
@@ -143,24 +147,60 @@ async def get_shenzhen_bidding_info():
         session.get(url, timeout=20)
 
         response = session.get(url)
-        
+
         soup = BeautifulSoup(response.text, "html.parser")
 
         news_items = soup.find('ul', {'class': 'news-items', 'id': 'infoContent'})
 
-        if news_items:
-            li_items = news_items.find_all('li')
+        if not news_items:
+            print("没有找到更多内容，停止爬取")
+            break
 
-            for li_item in li_items:
-                print(f"标题：{li_item.text}")
-                info = extract_info_from_li_item(li_item)
-                if info:
-                    await insert_info_to_db(info, session, url)
-                else:
-                    continue
-                # print("--------------------------------")
+        li_items = news_items.find_all('li')
+        if not li_items:
+            print("本页没有项目，停止爬取")
+            break
+
+        for li_item in li_items:
+            info = extract_info_from_li_item(li_item)
+            if not info:
+                continue
+
+            print(f"标题：{info.title}, 日期：{info.publish_date}")
+
+            # Check if date is too old
+            try:
+                item_date = datetime.datetime.strptime(info.publish_date, "%Y-%m-%d")
+                if item_date < stop_date:
+                    print(f"[STOP] 日期 {info.publish_date} 早于截止日期，停止爬取")
+                    return
+            except ValueError:
+                pass
+
+            # Check if already exists (duplicate detection)
+            query = {
+                "title": info.title,
+                "publish_date": info.publish_date
+            }
+            exist_info = await db.bidding_infomation.find_one(query)
+            if exist_info:
+                print(f"[SKIP] 已存在：{info.title}")
+                consecutive_duplicates += 1
+                if consecutive_duplicates >= max_consecutive_duplicates:
+                    print(f"[STOP] 连续找到 {max_consecutive_duplicates} 条重复记录，停止爬取")
+                    return
+                continue
+
+            # Reset duplicate counter when we find new items
+            consecutive_duplicates = 0
+
+            # Insert new record
+            await insert_info_to_db(info, session, url)
+
         count += 1
-        await asyncio.sleep(60)  
+        await asyncio.sleep(60)
+
+    print(f"[DONE] 爬取完成，共处理 {count} 页")  
 
 
 # 数据库中最新的招标信息
@@ -257,7 +297,7 @@ async def insert_info_to_db(info: BiddingInfo, session: requests.Session, list_p
         if keyword in info.title or keyword in data['采购单位']:
             # 判断该项目是否属于货物类项目
             completion = client.chat.completions.create(
-                model="gpt-5-2025-08-07",
+                model="gpt-5.1-2025-11-13",
                 stream=False,
                 messages=[
                     {"role": "system", "content": "你是一位招标采购专家，请根据我提供的招标项目描述信息，判断这个项目是否属于货物类项目。"},
@@ -349,14 +389,84 @@ async def main():
     except (KeyboardInterrupt, SystemExit):
         print("Stopping the scheduler...")
 
+# 运行一次，遇到已存在的记录就停止
+async def run_once_stop_on_duplicate():
+    """
+    爬取招标信息，遇到数据库中已存在的记录时立即停止。
+    适用于手动触发的一次性爬取任务。
+    """
+    db = await get_database()
+    print("[RUN ONCE] 开始爬取，遇到已存在记录时停止...")
+
+    page = 1
+    max_pages = 10
+    new_count = 0
+
+    while page <= max_pages:
+        print(f"\n[PAGE {page}] 正在爬取...")
+        url = build_list_url(page)
+
+        session = requests.Session()
+        session.headers.update(headers)
+
+        try:
+            response = session.get(url, timeout=20)
+            if response.status_code != 200:
+                print(f"[SKIP] 页面请求失败: {response.status_code}")
+                page += 1
+                continue
+        except Exception as e:
+            print(f"[ERROR] 请求异常: {e}")
+            page += 1
+            continue
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        news_items = soup.find('ul', {'class': 'news-items', 'id': 'infoContent'})
+
+        if not news_items:
+            print("[STOP] 未找到内容列表，结束爬取")
+            break
+
+        li_items = news_items.find_all('li')
+        if not li_items:
+            print("[STOP] 本页无项目，结束爬取")
+            break
+
+        for li_item in li_items:
+            info = extract_info_from_li_item(li_item)
+            if not info:
+                continue
+
+            print(f"  - 标题: {info.title}, 日期: {info.publish_date}")
+
+            # 检查是否已存在
+            query = {
+                "title": info.title,
+                "publish_date": info.publish_date
+            }
+            exist_info = await db.bidding_infomation.find_one(query)
+
+            if exist_info:
+                print(f"\n[STOP] 遇到已存在记录，停止爬取")
+                print(f"[STOP] 本次新增 {new_count} 条记录")
+                return
+
+            # 插入新记录
+            success = await insert_info_to_db(info, session, url)
+            if success:
+                new_count += 1
+                print(f"    ✓ 新增成功")
+            else:
+                print(f"    ✗ 插入失败")
+
+        page += 1
+        await asyncio.sleep(2)  # 短暂延迟，避免请求过快
+
+    print(f"\n[DONE] 爬取完成，共处理 {page} 页，新增 {new_count} 条记录")
+
+
 if __name__ == "__main__":
-    # asyncio.run(main())
-    asyncio.run(get_shenzhen_bidding_info())
-
-    # session = requests.Session()
-    # session.headers.update(headers)
-
-    # for p in [1, 10, 11, 12]:
-    #     u = build_list_url(p)
-    #     r = session.get(u, timeout=20)
-    #     print(p, u, r.status_code, len(r.text))
+    # 选择运行模式
+    # asyncio.run(main())  # 定时任务模式
+    # asyncio.run(get_shenzhen_bidding_info())  # 持续爬取模式
+    asyncio.run(run_once_stop_on_duplicate())  # 一次性爬取，遇到重复即停

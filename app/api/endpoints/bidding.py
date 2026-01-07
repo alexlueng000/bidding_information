@@ -2,12 +2,23 @@ from fastapi import APIRouter, Query
 from fastapi.encoders import jsonable_encoder
 from typing import List, Optional, Dict
 from datetime import datetime
+from bson import ObjectId
 
 from app.db.mongodb import get_database
 from app.db.models.info import BiddingInfo
 from app.api.models.response import UniversityInfoResponse
 
 router = APIRouter()
+
+def convert_objectid(obj):
+    """Convert MongoDB ObjectId to string for JSON serialization."""
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    elif isinstance(obj, dict):
+        return {k: convert_objectid(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_objectid(item) for item in obj]
+    return obj
 
 @router.get("/bidding", response_model=List[BiddingInfo])
 async def get_bidding_info(
@@ -18,18 +29,19 @@ async def get_bidding_info(
     print("skip: ", skip)
     print("limit: ", limit)
     # print("date: ", date)
-    
+
     db = await get_database()
     query = {}
-    
+
     # Add date filter if provided
     if date:
         query["publish_date"] = date
-    
+
     cursor = db.bidding_infomation.find(query).sort("publish_date", -1).skip(skip).limit(limit)
     results = await cursor.to_list(length=limit)
-    
-    return results
+
+    # Convert ObjectId to string
+    return convert_objectid(results)
 
 
 @router.get("/bidding/count")
@@ -47,9 +59,9 @@ async def get_bidding_info_count(
 
 @router.get("/bidding/universities", response_model=UniversityInfoResponse)
 async def get_university_info():
-    
+
     db = await get_database()
-    
+
     nkd = await db.nkd.find({"is_good": True}).sort("publish_date", -1).skip(0).limit(5).to_list(length=5)
     nkd_total = await db.nkd.count_documents({"is_good": True})
     szu = await db.szu.find({"is_good": True}).sort("publish_date", -1).skip(0).limit(5).to_list(length=5)
@@ -87,6 +99,26 @@ async def get_university_info():
     szzyjs_total = await db.szzyjs.count_documents({"is_good": True})
     pcsys = await db.pcsys.find({"is_good": True}).sort("publish_date", -1).skip(0).limit(5).to_list(length=5)
     pcsys_total = await db.pcsys.count_documents({"is_good": True})
+
+    # Convert ObjectId to string for all collections
+    nkd = convert_objectid(nkd)
+    szu = convert_objectid(szu)
+    sztu = convert_objectid(sztu)
+    iasf = convert_objectid(iasf)
+    siqse = convert_objectid(siqse)
+    pkusz = convert_objectid(pkusz)
+    tsinghua = convert_objectid(tsinghua)
+    sziit = convert_objectid(sziit)
+    szbl = convert_objectid(szbl)
+    smbu = convert_objectid(smbu)
+    szari = convert_objectid(szari)
+    szyxkxy = convert_objectid(szyxkxy)
+    hgd = convert_objectid(hgd)
+    hkc = convert_objectid(hkc)
+    szlg = convert_objectid(szlg)
+    szust = convert_objectid(szust)
+    szzyjs = convert_objectid(szzyjs)
+    pcsys = convert_objectid(pcsys)
 
     response = UniversityInfoResponse(
         iasf=iasf,
@@ -128,16 +160,56 @@ async def get_university_info():
     )
     return response
 
-@router.get("/bidding/universities/{university}", response_model=List[BiddingInfo])
+@router.get("/bidding/universities/{university}")
 async def get_university_info_by_university(university: str):
-    
+
     print("the university that query: ", university)
-    
+
     db = await get_database()
     collection = db[university]
     if collection is not None:
         cursor = collection.find({"is_good": True}).sort("publish_date", -1)
         results = await cursor.to_list()
-        return results
+        # Convert ObjectId to string and return raw dict
+        return convert_objectid(results)
     else:
         return None
+
+
+@router.get("/bidding/item/{id}")
+async def get_bidding_item_by_id(id: str):
+    """
+    Get a single bidding item by ID.
+    Searches across all university collections.
+    """
+    from bson import ObjectId
+
+    db = await get_database()
+    universities = [
+        "nkd", "szu", "sztu", "iasf", "siqse", "pkusz", "tsinghua",
+        "sziit", "szbl", "smbu", "szari", "szyxkxy", "hgd", "hkc",
+        "szlg", "szzyjs", "pcsys", "szust"
+    ]
+
+    # Try to find the item in each university collection
+    for university in universities:
+        try:
+            result = await db[university].find_one({"_id": ObjectId(id)})
+            if result:
+                # Convert ObjectId to string for JSON serialization
+                result["_id"] = str(result["_id"])
+                result["university"] = university
+                return result
+        except Exception:
+            continue
+
+    # Also check the main collection
+    try:
+        result = await db.bidding_infomation.find_one({"_id": ObjectId(id)})
+        if result:
+            result["_id"] = str(result["_id"])
+            return result
+    except Exception:
+        pass
+
+    return None

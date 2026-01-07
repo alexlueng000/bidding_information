@@ -1,26 +1,18 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
 
 class UniversityInfo(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
     title: str
-    url: str
     publish_date: str
-    created_at: str
+    created_at: Optional[str] = None
 
 
 class UniversityInfoList(BaseModel):
     universities: List[UniversityInfo]
 
-# pkusz=pkusz,
-        # pkusz_total=pkusz_total,
-        # tsinghua=tsinghua,
-        # tsinghua_total=tsinghua_total,
-        # sziit=sziit,
-        # sziit_total=sziit_total,
-        # szbl=szbl,
-        # szbl_total=szbl_total,
-        # szari=szari,
-        # szbl_total=szbl_total
+
 
 class UniversityInfoResponse(BaseModel):
     iasf: List[UniversityInfo]
