@@ -22,4 +22,6 @@ app.add_middleware(
 async def root():
     return {"message": "Hello, World!"}
 
+# Include router with both prefixes for compatibility
 app.include_router(bidding.router, prefix="/api/v1")
+app.include_router(bidding.router, prefix="/v1")
