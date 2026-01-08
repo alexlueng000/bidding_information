@@ -7,7 +7,8 @@ app = FastAPI()
 
 allow_origins = [
     "http://localhost:3000",
-    "https://b49d-120-229-55-240.ngrok-free.app"
+    "https://b49d-120-229-55-240.ngrok-free.app",
+    "http://43.142.103.194:3000"
 ]
 
 app.add_middleware(
