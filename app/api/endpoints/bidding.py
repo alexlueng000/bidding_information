@@ -6,7 +6,6 @@ from bson import ObjectId
 
 from app.db.mongodb import get_database
 from app.db.models.info import BiddingInfo
-from app.api.models.response import UniversityInfoResponse
 
 router = APIRouter()
 
@@ -57,7 +56,7 @@ async def get_bidding_info_count(
     return {"total": count}
 
 
-@router.get("/bidding/universities", response_model=UniversityInfoResponse)
+@router.get("/bidding/universities")
 async def get_university_info():
 
     db = await get_database()
@@ -120,45 +119,27 @@ async def get_university_info():
     szzyjs = convert_objectid(szzyjs)
     pcsys = convert_objectid(pcsys)
 
-    response = UniversityInfoResponse(
-        iasf=iasf,
-        iasf_total=iasf_total,
-        nkd=nkd,
-        nkd_total=nkd_total,
-        sztu=sztu,
-        sztu_total=sztu_total,
-        szu=szu,
-        szu_total=szu_total,
-        siqse=siqse,
-        siqse_total=siqse_total,
-        pkusz=pkusz,
-        pkusz_total=pkusz_total,
-        tsinghua=tsinghua,
-        tsinghua_total=tsinghua_total,
-        sziit=sziit,
-        sziit_total=sziit_total,
-        szbl=szbl,
-        szbl_total=szbl_total,
-        smbu=smbu,
-        smbu_total=smbu_total,
-        szari=szari,
-        szari_total=szari_total,
-        szyxkxy=szyxkxy,
-        szyxkxy_total=szyxkxy_total,
-        hgd=hgd,
-        hgd_total=hgd_total,
-        hkc=hkc,
-        hkc_total=hkc_total,
-        szlg=szlg,
-        szlg_total=szlg_total,
-        szzyjs=szzyjs,
-        szzyjs_total=szzyjs_total,
-        pcsys=pcsys,
-        pcsys_total=pcsys_total,
-        szust=szust,
-        szust_total=szust_total
-    )
-    return response
+    # Return raw dict without Pydantic validation to preserve _id and url fields
+    return {
+        "iasf": iasf, "iasf_total": iasf_total,
+        "nkd": nkd, "nkd_total": nkd_total,
+        "sztu": sztu, "sztu_total": sztu_total,
+        "szu": szu, "szu_total": szu_total,
+        "siqse": siqse, "siqse_total": siqse_total,
+        "pkusz": pkusz, "pkusz_total": pkusz_total,
+        "tsinghua": tsinghua, "tsinghua_total": tsinghua_total,
+        "sziit": sziit, "sziit_total": sziit_total,
+        "szbl": szbl, "szbl_total": szbl_total,
+        "smbu": smbu, "smbu_total": smbu_total,
+        "szari": szari, "szari_total": szari_total,
+        "szyxkxy": szyxkxy, "szyxkxy_total": szyxkxy_total,
+        "hgd": hgd, "hgd_total": hgd_total,
+        "hkc": hkc, "hkc_total": hkc_total,
+        "szlg": szlg, "szlg_total": szlg_total,
+        "szzyjs": szzyjs, "szzyjs_total": szzyjs_total,
+        "pcsys": pcsys, "pcsys_total": pcsys_total,
+        "szust": szust, "szust_total": szust_total
+    }
 
 @router.get("/bidding/universities/{university}")
 async def get_university_info_by_university(university: str):
