@@ -23,6 +23,11 @@ async def test_mongodb_connection():
     MONGO_PORT = os.getenv("MONGO_PORT", "27017")
     MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "bidding_info_new")
 
+    print("MONGO_USER repr:", repr(os.getenv("MONGO_USER")))
+    print("MONGO_PASS repr:", repr(os.getenv("MONGO_PASS")))
+    print("MONGO_HOST repr:", repr(os.getenv("MONGO_HOST")))
+    print("MONGO_DB_NAME repr:", repr(os.getenv("MONGO_DB_NAME")))
+
     if MONGO_USER and MONGO_PASS:
         user = quote_plus(MONGO_USER)
         pwd = quote_plus(MONGO_PASS)
