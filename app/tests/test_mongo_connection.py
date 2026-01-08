@@ -31,7 +31,7 @@ async def test_mongodb_connection():
     if MONGO_USER and MONGO_PASS:
         user = quote_plus(MONGO_USER)
         pwd = quote_plus(MONGO_PASS)
-        mongo_url = f"mongodb://{user}:{pwd}@{MONGO_HOST}:{MONGO_PORT}/?authSource=admin"
+        mongo_url = f"mongodb://{user}:{pwd}@{MONGO_HOST}:{MONGO_PORT}/?authSource=bidding_info_new"
         print(f"Connection Mode: Authenticated")
         print(f"Host: {MONGO_HOST}:{MONGO_PORT}")
         print(f"User: {MONGO_USER}")
