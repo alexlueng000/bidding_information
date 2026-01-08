@@ -16,7 +16,7 @@ if MONGO_USER and MONGO_PASS:
     pwd = quote_plus(MONGO_PASS)  # 关键：会把 ## 变成 %23%23
     MONGO_DB_URL = (
         f"mongodb://{user}:{pwd}@{MONGO_HOST}:{MONGO_PORT}/"
-        f"?authSource=admin"
+        f"bidding_info_new?authSource=admin"
     )
 else:
     MONGO_DB_URL = f"mongodb://{MONGO_HOST}:{MONGO_PORT}"
