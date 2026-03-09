@@ -115,16 +115,6 @@ async def insert_info_to_db_from_excel(row_data: Dict[str, any]) -> bool:
     title = row_data.get('title', '')
     publish_date = row_data.get('publish_date', '')
 
-    # Check if already exists (by title + publish_date)
-    query = {
-        "title": title,
-        "publish_date": publish_date
-    }
-    exist_info = await db.bidding_infomation.find_one(query)
-    if exist_info:
-        print(f"[insert_from_excel] ⏭️  Already exists: {title}")
-        return False
-
     # Add metadata fields
     row_data['created_at'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -241,7 +231,7 @@ async def main():
         file_path='projects.xlsx',
         sheet_name='采购意向项目列表',
         skiprows=1,
-        after_date='2025-5-31',
+        after_date='2026-2-3',
         date_column='发布时间'
     )
 
