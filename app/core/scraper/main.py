@@ -180,7 +180,8 @@ async def get_shenzhen_bidding_info():
             # Check if already exists (duplicate detection)
             query = {
                 "title": info.title,
-                "publish_date": info.publish_date
+                "publish_date": info.publish_date,
+                "url": info.url
             }
             exist_info = await db.bidding_infomation.find_one(query)
             if exist_info:
@@ -442,7 +443,8 @@ async def run_once_stop_on_duplicate():
             # 检查是否已存在
             query = {
                 "title": info.title,
-                "publish_date": info.publish_date
+                "publish_date": info.publish_date,
+                "url": info.url
             }
             exist_info = await db.bidding_infomation.find_one(query)
 
@@ -469,4 +471,5 @@ if __name__ == "__main__":
     # 选择运行模式
     # asyncio.run(main())  # 定时任务模式
     # asyncio.run(get_shenzhen_bidding_info())  # 持续爬取模式
-    asyncio.run(run_once_stop_on_duplicate())  # 一次性爬取，遇到重复即停
+    # asyncio.run(run_once_stop_on_duplicate())  # 一次性爬取，遇到重复即停
+    asyncio.run(get_shenzhen_bidding_info())  # 跳过已存在记录，连续5条重复才停（用于补漏）
