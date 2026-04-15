@@ -283,7 +283,7 @@ async def insert_info_to_db(info: BiddingInfo, session: requests.Session, list_p
         "深圳先进光源研究院",
         "北京大学深圳研究生院",
         "清华大学深圳国际研究生院",
-        "深圳信息职业技术学院",
+        "深圳信息职业技术大学",
         "深圳湾实验室",
         "深圳北理莫斯科大学",
         "北京理工大学深圳汽车研究院",
@@ -337,7 +337,7 @@ async def insert_info_to_db(info: BiddingInfo, session: requests.Session, list_p
                     db.pkusz.insert_one(info.model_dump())
                 case "清华大学深圳国际研究生院":
                     db.tsinghua.insert_one(info.model_dump())
-                case "深圳信息职业技术学院":
+                case "深圳信息职业技术大学":
                     db.sziit.insert_one(info.model_dump())
                 case "深圳湾实验室":
                     db.szbl.insert_one(info.model_dump())

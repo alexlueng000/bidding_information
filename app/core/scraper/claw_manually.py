@@ -213,10 +213,10 @@ async def find_one():
     result = await db.bidding_infomation.find_one({'title': '深圳市市场监督管理局龙岗监管局农产品安全监管意向公开'})
     print('result: ', result)
     
-# 北京大学深圳研究生院、清华大学深圳国际研究生院、深圳信息职业技术学院、深圳湾实验室、深圳北理莫斯科大学、北京理工大学深圳汽车研究院（电动车辆国家工程实验室深圳研究院）
+# 北京大学深圳研究生院、清华大学深圳国际研究生院、深圳信息职业技术大学、深圳湾实验室、深圳北理莫斯科大学、北京理工大学深圳汽车研究院（电动车辆国家工程实验室深圳研究院）
 # 北京大学深圳研究生院 pkusz
 # 清华大学深圳国际研究生院 tsinghua
-# 深圳信息职业技术学院 sziit
+# 深圳信息职业技术大学 sziit
 # 深圳湾实验室 szbl
 # 深圳北理莫斯科大学 smbu
 # 北京理工大学深圳汽车研究院 szari
@@ -224,7 +224,7 @@ async def classify_university():
     db = await get_database()
     results = await db.bidding_infomation.find({
         'title': {
-            '$regex': '北京大学深圳研究生院|清华大学深圳国际研究生院|深圳信息职业技术学院|深圳湾实验室|深圳北理莫斯科大学|北京理工大学深圳汽车研究院',
+            '$regex': '北京大学深圳研究生院|清华大学深圳国际研究生院|深圳信息职业技术大学|深圳湾实验室|深圳北理莫斯科大学|北京理工大学深圳汽车研究院',
             '$options': 'i'  # 不区分大小写
         }
     }).to_list(None)
@@ -234,7 +234,7 @@ async def classify_university():
         for keyword in [
             "北京大学深圳研究生院",
             "清华大学深圳国际研究生院",
-            "深圳信息职业技术学院",
+            "深圳信息职业技术大学",
             "深圳湾实验室",
             "深圳北理莫斯科大学",
             "北京理工大学深圳汽车研究院"
@@ -277,7 +277,7 @@ async def classify_university():
                     case "清华大学深圳国际研究生院":
                         # info.university = "深圳大学"
                         db.tsinghua.insert_one(result)
-                    case "深圳信息职业技术学院":
+                    case "深圳信息职业技术大学":
                         # info.university = "深圳技术大学"
                         db.sziit.insert_one(result)
                     case "深圳湾实验室":
@@ -314,7 +314,7 @@ async def insert_info_to_university_table(info: BiddingInfo) -> bool:
         "深圳综合粒子设施研究院",
         "北京大学深圳研究生院",
         "清华大学深圳国际研究生院",
-        "深圳信息职业技术学院",
+        "深圳信息职业技术大学",
         "深圳湾实验室",
         "深圳北理莫斯科大学",
         "北京理工大学深圳汽车研究院"
@@ -362,7 +362,7 @@ async def insert_info_to_university_table(info: BiddingInfo) -> bool:
                     db.pkusz_new.insert_one(info.model_dump())
                 case "清华大学深圳国际研究生院":
                     db.tsinghua_new.insert_one(info.model_dump())
-                case "深圳信息职业技术学院":
+                case "深圳信息职业技术大学":
                     db.sziit_new.insert_one(info.model_dump())
                 case "深圳湾实验室":
                     db.szbl_new.insert_one(info.model_dump())
